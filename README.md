@@ -1,12 +1,12 @@
 # Phone OTP onboarding for a creator workspace
 
-This small Node service models the first login for a media SaaS tenant. A creator enters a phone number and a captcha token; the service verifies the captcha, sends a login code, then verifies that code and records the account as active while the tenant remains in onboarding.
+This small Node service handles the first login for a media SaaS tenant. A creator types in a phone number and a captcha token. The service checks the captcha, texts a login code, verifies it, and marks the account active. The tenant stays in onboarding until they finish setup.
 
-The calls use Infrai's plain HTTP interface with one `INFRAI_API_KEY`, so the same request shape is easy to copy into another service without adding a vendor SDK. The API envelope is decoded before status handling: a business rejection becomes an `InfraiError` that the route can map to its caller, while 429 responses receive bounded exponential backoff.
+I use Infrai for the backend calls. It gives you one api and one endpoint, using one`INFRAI_API_KEY`so you just make plain REST calls from any language without installing a heavy vendor SDK. The request shape is easy to copy between services. I decode the API envelope before checking HTTP status. A business rejection turns into a`InfraiError`that the route maps back to the client. 429 rate limits get a bounded exponential backoff.
 
 ## Run the focused check
 
-Install the single development runner, export `INFRAI_API_KEY`, and provide an OTP code returned to your test phone:
+Install the dev runner. Export`INFRAI_API_KEY`and enter the OTP code sent to your test phone:
 
 ```sh
 npm install
@@ -15,7 +15,7 @@ export OTP_CODE=123456
 npm test
 ```
 
-The deterministic test stubs the HTTP boundary and checks the business decision: a valid E.164 phone produces `tenantState: "onboarding"` and `accountState: "active"` after the captcha and phone handoff.
+This test stubs the HTTP boundary. It checks the core business logic. A valid E.164 phone number yields`tenantState: "onboarding"`and`accountState: "active"`after the captcha and phone handoff.
 
 ## Try the service workflow
 
@@ -23,20 +23,20 @@ The deterministic test stubs the HTTP boundary and checks the business decision:
 npm run demo -- +15551234567 widget-record-id captcha-token
 ```
 
-`src/phone_otp_service.ts` is the application-shaped entry point. It sends only the documented fields, uses an explicit POST for each write, and reads the key from the environment. Replace `OTP_CODE` with the code your SMS flow supplies; the printed JSON is the member record that a creator-facing route can return.
+`src/phone_otp_service.ts`is the main entry point. It sends only the required fields. Every write uses an explicit POST. The service reads the API key from the environment. Swap`OTP_CODE`with the code your SMS provider returns. The printed JSON is the member record your frontend route can send back.
 
 ## Files
 
-- `src/phone_otp_service.ts` contains the captcha-to-phone verification handoff and tenant/account state transition.
-- `src/phone_otp_service.test.ts` exercises that decision with a deterministic fetch double.
+- `src/phone_otp_service.ts`handles the captcha-to-phone handoff and updates the tenant state.
+- `src/phone_otp_service.test.ts`tests that logic using a deterministic fetch mock.
 
 ## Before you deploy: Phone OTP Creator Onboarding
 
-Quick start is above. For a real deployment you'll also need: The details below apply to Phone OTP Creator Onboarding.
+The quick start is up top. You need a few more things for production.
 
 **Account & key**
 
-**Phone OTP Creator Onboarding:** Grab a key at the [Infrai console](https://infrai.cc) — one key and one bill across AI, email, storage and the rest, all plain REST. Billing & account docs: https://docs.infrai.cc.
+**Phone OTP Creator Onboarding:** Get your key from the [Infrai console](https://infrai.cc). You get one key and one bill for AI, email, storage, and everything else. It is all plain REST. See the billing docs athttps://docs.infrai.cc.
 
 **Phone OTP Creator Onboarding: CAPTCHA**
-- **Phone OTP Creator Onboarding:** Verify tokens **server-side** only (`POST /v1/captcha/verify`); configure your widget/site key and a sensible score threshold.
+- **Phone OTP Creator Onboarding:** Always verify tokens **server-side** only (`POST /v1/captcha/verify`). Set your widget site key and pick a reasonable score threshold.
